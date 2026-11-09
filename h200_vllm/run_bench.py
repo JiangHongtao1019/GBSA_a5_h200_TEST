@@ -37,13 +37,17 @@ try:
         SCENES, WorkloadConfig, build_kv_cache, gather_kv, fixed_permuted_block_table,
         make_scene_ids, selected_token_indices, selection_metrics,
     )
-    from vllm_backend import GBSAH200Impl, GBSAMetadata, VLLM_AVAILABLE
+    from vllm_backend import (GBSAH200Impl, GBSAMetadata, VLLM_AVAILABLE,
+                              VLLM_ATTENTION_API_AVAILABLE, VLLM_IMPORT_ERROR,
+                              VLLM_VERSION)
 except ImportError:  # package import: python -m h200_vllm.run_bench
     from .workload import (
         SCENES, WorkloadConfig, build_kv_cache, gather_kv, fixed_permuted_block_table,
         make_scene_ids, selected_token_indices, selection_metrics,
     )
-    from .vllm_backend import GBSAH200Impl, GBSAMetadata, VLLM_AVAILABLE
+    from .vllm_backend import (GBSAH200Impl, GBSAMetadata, VLLM_AVAILABLE,
+                               VLLM_ATTENTION_API_AVAILABLE, VLLM_IMPORT_ERROR,
+                               VLLM_VERSION)
 
 
 def parse_ints(text: str) -> list[int]:
@@ -131,7 +135,15 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.require_vllm and not VLLM_AVAILABLE:
+        if VLLM_IMPORT_ERROR:
+            print("[gbsa-h200] vLLM import traceback:", file=sys.stderr)
+            print(VLLM_IMPORT_ERROR, file=sys.stderr)
         raise RuntimeError("vLLM is required but could not be imported")
+    if args.require_vllm and VLLM_AVAILABLE and not VLLM_ATTENTION_API_AVAILABLE:
+        print("[gbsa-h200] warning: vLLM imported, but AttentionImpl API was not found; "
+              "the microbenchmark will use GBSAH200Impl directly", file=sys.stderr)
+    if VLLM_AVAILABLE:
+        print(f"[gbsa-h200] vLLM {VLLM_VERSION}")
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is not available; this runner is for NVIDIA H200")
     device = torch.device(args.device)

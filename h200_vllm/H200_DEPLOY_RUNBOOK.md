@@ -199,11 +199,41 @@ docker cp <容器名>:/workspace/GBSA_a5_h200_TEST/outputs_h200_vllm/full_12seed
 - `nvidia-smi` 是否正常；
 - `torch.cuda.is_available()` 是否为 True。
 
-**提示 vLLM 不可用**
+**提示 `vLLM is required but could not be imported`**
 
-- 先 `python -c "import vllm; print(vllm.__version__)"`；
-- 确认当前 shell 在正确的 venv/conda 环境中；
-- 如果暂时不想强制 vLLM，可去掉 `--require-vllm`，脚本会走纯 PyTorch 参考路径，但这就不是 vLLM 环境下的结果。
+先看真实 traceback：
+
+```bash
+which python
+python -c "import sys; print(sys.executable, sys.version)"
+python -c "import vllm; print(vllm.__version__)"
+```
+
+如果上面这条也失败，按实际异常处理。新版脚本会在 `--require-vllm` 失败时直接打印完整 traceback，而不是只给一句笼统错误。
+
+再单独检查 attention API：
+
+```bash
+python - <<'PY'
+import traceback
+try:
+    import vllm
+    print("vllm:", vllm.__version__)
+except Exception:
+    traceback.print_exc()
+try:
+    from vllm.attention.backends.abstract import AttentionBackend, AttentionImpl
+    print("attention API: OK")
+except Exception:
+    traceback.print_exc()
+PY
+```
+
+注意：
+
+- 新版判断 `VLLM_AVAILABLE` 只看 `import vllm` 是否成功；如果只是 `AttentionImpl` 路径随 vLLM 版本变化，benchmark 仍可用 `GBSAH200Impl` 直接跑，但会打印 warning；
+- 确认当前 shell 在正确的 venv/conda 环境中，不要用系统 Python 装完却在另一个 Python 下运行；
+- 如果 vLLM 暂时不可用且只想验证张量路径，可去掉 `--require-vllm`，但这不再是 vLLM 环境下的结果。
 
 **显存不足**
 

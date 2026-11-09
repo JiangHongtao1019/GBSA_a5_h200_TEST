@@ -12,6 +12,7 @@ keeping the same benchmark contract.
 from __future__ import annotations
 
 import math
+import traceback
 from dataclasses import dataclass
 
 import torch
@@ -72,18 +73,36 @@ class GBSAMetadata:
     precomputed_kv: tuple[torch.Tensor, torch.Tensor] | None = None
 
 
-try:  # vLLM is optional at import time so the reference path can be tested alone.
+# vLLM is optional at import time so the reference path can be tested alone.
+# Keep the actual import error so users see the real cause instead of only
+# "vLLM is required but could not be imported".
+_VLLM_IMPORT_ERROR: str | None = None
+_VLLM_ATTENTION_API_ERROR: str | None = None
+try:
+    import vllm as _vllm
+    VLLM_AVAILABLE = True
+    VLLM_VERSION = getattr(_vllm, "__version__", "unknown")
+except Exception:
+    _vllm = None
+    VLLM_AVAILABLE = False
+    VLLM_VERSION = "not-importable"
+    _VLLM_IMPORT_ERROR = traceback.format_exc()
+
+try:
     from vllm.attention.backends.abstract import AttentionBackend
     try:
         from vllm.attention.backends.abstract import AttentionImpl as _VllmAttentionImpl
-    except Exception:
+    except Exception as exc:
         _VllmAttentionImpl = None
-except Exception:  # pragma: no cover - only used on non-vLLM hosts
+        _VLLM_ATTENTION_API_ERROR = f"AttentionImpl unavailable: {exc}"
+except Exception as exc:  # pragma: no cover - only used on non-vLLM hosts
     class AttentionBackend:  # type: ignore
         pass
     _VllmAttentionImpl = None
+    if _VLLM_ATTENTION_API_ERROR is None:
+        _VLLM_ATTENTION_API_ERROR = f"AttentionBackend unavailable: {exc}"
 
-VLLM_AVAILABLE = _VllmAttentionImpl is not None
+VLLM_ATTENTION_API_AVAILABLE = _VllmAttentionImpl is not None
 
 
 class GBSAH200Impl(torch.nn.Module):
