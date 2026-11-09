@@ -8,4 +8,4 @@ outputs_h200_vllm/
 tmp_*/
 test_tmp.txt
 flash-attention-npu/
-GBSA算子测试.zip
+GBSA算子测试.zipGBSA_A5_H200_TEST.zip

@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""No-GPU validation for the H200/vLLM benchmark result directory."""
+"""No-GPU validation for the H200/vLLM benchmark result directory.
+
+Uses only the Python standard library (no pandas/numpy).
+"""
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
+import statistics
+from collections import defaultdict
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
+
+def read_csv(path: Path) -> list[dict]:
+    with path.open("r", newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
 
 
 def sha256(path: Path) -> str:
@@ -26,37 +34,39 @@ def main() -> int:
     ap.add_argument("results", nargs="?", default="outputs_h200_vllm/full_12seed")
     args = ap.parse_args()
     d = Path(args.results)
-    runs = pd.read_csv(d / "raw_runs.csv")
-    timings = pd.read_csv(d / "raw_timings.csv")
-    summary = pd.read_csv(d / "summary_by_scene_range_batch.csv")
+    runs = read_csv(d / "raw_runs.csv")
+    timings = read_csv(d / "raw_timings.csv")
+    summary = read_csv(d / "summary_by_scene_range_batch.csv")
     manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
 
-    assert not runs.empty and not timings.empty and not summary.empty
-    assert runs[["latency_median_ms", "latency_mean_ms", "latency_min_ms", "latency_max_ms"]].notna().all().all()
-    assert np.isfinite(runs.select_dtypes(include=[np.number]).to_numpy()).all()
-    assert np.isfinite(timings["latency_ms"].to_numpy()).all()
-    assert (runs["latency_median_ms"] > 0).all()
+    assert runs and timings and summary
+    for row in runs:
+        for key in ("latency_median_ms", "latency_mean_ms", "latency_min_ms", "latency_max_ms"):
+            v = float(row[key])
+            assert math.isfinite(v) and v > 0, (key, v)
+    for row in timings:
+        v = float(row["latency_ms"])
+        assert math.isfinite(v) and v > 0, v
 
-    expected_runs = manifest["runs"]
-    assert len(runs) == expected_runs, (len(runs), expected_runs)
-    assert len(timings) == manifest["timed_samples"], (len(timings), manifest["timed_samples"])
-    assert len(summary) == runs.groupby(
-        ["batch_size", "scene", "range_regions_requested", "timing_mode"]
-    ).ngroups
+    assert len(runs) == int(manifest["runs"]), (len(runs), manifest["runs"])
+    assert len(timings) == int(manifest["timed_samples"]), (len(timings), manifest["timed_samples"])
+    keys = {(r["batch_size"], r["scene"], r["range_regions_requested"], r["timing_mode"]) for r in runs}
+    assert len(summary) == len(keys), (len(summary), len(keys))
 
-    # Recompute each run median from the per-iteration timings.
-    calc = timings.groupby("run_id")["latency_ms"].median()
-    merged = runs.set_index("run_id")["latency_median_ms"].to_frame().join(calc, how="left")
-    max_diff = float((merged["latency_median_ms"] - merged["latency_ms"]).abs().max())
+    by_run: dict[str, list[float]] = defaultdict(list)
+    for row in timings:
+        by_run[row["run_id"]].append(float(row["latency_ms"]))
+    run_medians = {run_id: statistics.median(xs) for run_id, xs in by_run.items()}
+    max_diff = max(abs(float(r["latency_median_ms"]) - run_medians[r["run_id"]]) for r in runs)
     assert max_diff < 1e-9, max_diff
-    assert timings.groupby("run_id").size().nunique() == 1
+    assert len(set(len(xs) for xs in by_run.values())) == 1
 
     assert sha256(d / "raw_runs.csv") == manifest["raw_runs_sha256"]
     assert sha256(d / "raw_timings.csv") == manifest["raw_timings_sha256"]
 
     print("PASS")
     print(f"  runs={len(runs)} timed_samples={len(timings)} summary_rows={len(summary)}")
-    print(f"  iterations_per_run={int(timings.groupby('run_id').size().iloc[0])}")
+    print(f"  iterations_per_run={len(next(iter(by_run.values())))}")
     print(f"  max |raw median - recomputed median| = {max_diff:.3e}")
     print(f"  raw_runs sha256={manifest['raw_runs_sha256']}")
     print(f"  raw_timings sha256={manifest['raw_timings_sha256']}")

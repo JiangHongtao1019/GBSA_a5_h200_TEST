@@ -152,15 +152,19 @@ outputs_h200_vllm/full_12seed/comparison_vs_ascend/
 
 ```bash
 python - <<'PY'
-import pandas as pd
+import csv
 p = "outputs_h200_vllm/full_12seed/summary_by_scene_range_batch.csv"
-df = pd.read_csv(p)
 cols = [
     "scene", "range_regions_requested", "latency_median_ms",
     "union_pages_median", "working_set_mib_median",
     "speedup_x_vs_w1k", "delta_pct_vs_w1k",
 ]
-print(df[(df.batch_size == 128) & (df.timing_mode == "gather_sdpa")][cols].to_string(index=False))
+with open(p, newline="", encoding="utf-8") as f:
+    rows = list(csv.DictReader(f))
+print("\t".join(cols))
+for r in rows:
+    if r["batch_size"] == "128" and r["timing_mode"] == "gather_sdpa":
+        print("\t".join(r[c] for c in cols))
 PY
 ```
 ## 9. 判断是否复现 Ascend 的波动
@@ -217,3 +221,4 @@ docker cp <容器名>:/workspace/GBSA_a5_h200_TEST/outputs_h200_vllm/full_12seed
 - KV 是确定性结构化生成的 BF16 cache，不是真实模型推理缓存；
 - `gather_sdpa` 是 PyTorch gather + FlashAttention 组合，不是单融合 GBSA kernel；
 - 要做真实 Step5 推理对比，需要 dump Ascend 服务的实际 topk ids，并替换脚本中的受控 ids。
+> 当前脚本的 CSV 聚合、验证和 Ascend 对照都使用 Python 标准库，不再依赖 pandas；只需要 torch、numpy 和 vLLM。

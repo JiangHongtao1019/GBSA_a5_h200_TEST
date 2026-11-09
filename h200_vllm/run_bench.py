@@ -17,6 +17,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import platform
@@ -25,10 +26,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from collections import defaultdict
 from typing import Callable
 
 import numpy as np
-import pandas as pd
 import torch
 
 try:
@@ -260,45 +261,61 @@ def main() -> int:
             del cache_k, cache_v
             torch.cuda.empty_cache()
 
-    runs = pd.DataFrame(raw_runs)
-    timings = pd.DataFrame(raw_timings)
-    runs.to_csv(out_dir / "raw_runs.csv", index=False)
-    timings.to_csv(out_dir / "raw_timings.csv", index=False)
+    write_csv(out_dir / "raw_runs.csv", raw_runs)
+    write_csv(out_dir / "raw_timings.csv", raw_timings)
 
     # Per-run medians are the unit of aggregation across selection seeds.
-    group_cols = ["batch_size", "scene", "range_regions_requested", "timing_mode"]
-    summary = (runs.groupby(group_cols, dropna=False)
-               .agg(
-                   n_runs=("selection_seed", "nunique"),
-                   latency_median_ms=("latency_median_ms", "median"),
-                   latency_mean_ms=("latency_median_ms", "mean"),
-                   latency_q25_ms=("latency_median_ms", lambda x: np.percentile(x, 25)),
-                   latency_q75_ms=("latency_median_ms", lambda x: np.percentile(x, 75)),
-                   per_request_pages_mean=("per_request_pages_mean", "median"),
-                   per_request_pages_median=("per_request_pages_median", "median"),
-                   union_pages_median=("union_pages", "median"),
-                   working_set_mib_median=("working_set_MiB", "median"),
-               ).reset_index())
-    summary["latency_iqr_ms"] = summary["latency_q75_ms"] - summary["latency_q25_ms"]
+    groups: dict[tuple, list[dict]] = defaultdict(list)
+    for row in raw_runs:
+        key = (row["batch_size"], row["scene"], row["range_regions_requested"], row["timing_mode"])
+        groups[key].append(row)
+
+    summary: list[dict] = []
+    for (batch, scene, selected_range, mode), vals in groups.items():
+        lat = [float(v["latency_median_ms"]) for v in vals]
+        summary.append({
+            "batch_size": batch,
+            "scene": scene,
+            "range_regions_requested": selected_range,
+            "timing_mode": mode,
+            "n_runs": len({int(v["selection_seed"]) for v in vals}),
+            "latency_median_ms": float(statistics.median(lat)),
+            "latency_mean_ms": float(statistics.fmean(lat)),
+            "latency_q25_ms": float(np.percentile(lat, 25)),
+            "latency_q75_ms": float(np.percentile(lat, 75)),
+            "per_request_pages_mean": float(statistics.median([float(v["per_request_pages_mean"]) for v in vals])),
+            "per_request_pages_median": float(statistics.median([float(v["per_request_pages_median"]) for v in vals])),
+            "union_pages_median": float(statistics.median([float(v["union_pages"]) for v in vals])),
+            "working_set_mib_median": float(statistics.median([float(v["working_set_MiB"]) for v in vals])),
+        })
+    for row in summary:
+        row["latency_iqr_ms"] = row["latency_q75_ms"] - row["latency_q25_ms"]
 
     # Align the summary schema with the Ascend report where possible.
-    base_cols = ["batch_size", "scene", "timing_mode"]
-    base = (summary[summary.range_regions_requested == 1024]
-            .set_index(base_cols)["latency_median_ms"].rename("latency_w1k_ms"))
-    summary = summary.merge(base, on=base_cols, how="left")
-    summary["delta_ms_vs_w1k"] = summary["latency_median_ms"] - summary["latency_w1k_ms"]
-    summary["speedup_x_vs_w1k"] = summary["latency_median_ms"] / summary["latency_w1k_ms"]
-    summary["delta_pct_vs_w1k"] = summary["speedup_x_vs_w1k"] * 100.0 - 100.0
-    summary.sort_values(["timing_mode", "batch_size", "scene", "range_regions_requested"]).to_csv(
-        out_dir / "summary_by_scene_range_batch.csv", index=False)
-    runs.sort_values(["timing_mode", "batch_size", "scene", "range_regions_requested", "selection_seed"]).to_csv(
-        out_dir / "raw_runs_sorted.csv", index=False)
+    base = {(r["batch_size"], r["scene"], r["timing_mode"]): r["latency_median_ms"]
+            for r in summary if r["range_regions_requested"] == 1024}
+    for row in summary:
+        b0 = base.get((row["batch_size"], row["scene"], row["timing_mode"]))
+        row["latency_w1k_ms"] = b0
+        if b0 is not None:
+            row["delta_ms_vs_w1k"] = row["latency_median_ms"] - b0
+            row["speedup_x_vs_w1k"] = row["latency_median_ms"] / b0
+            row["delta_pct_vs_w1k"] = row["speedup_x_vs_w1k"] * 100.0 - 100.0
+        else:
+            row["delta_ms_vs_w1k"] = None
+            row["speedup_x_vs_w1k"] = None
+            row["delta_pct_vs_w1k"] = None
+    summary.sort(key=lambda r: (r["timing_mode"], r["batch_size"], r["scene"], r["range_regions_requested"]))
+    write_csv(out_dir / "summary_by_scene_range_batch.csv", summary)
+    raw_sorted = sorted(raw_runs, key=lambda r: (r["timing_mode"], r["batch_size"], r["scene"],
+                                                r["range_regions_requested"], r["selection_seed"]))
+    write_csv(out_dir / "raw_runs_sorted.csv", raw_sorted)
 
     manifest = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "elapsed_s": round(time.time() - t0, 3),
-        "runs": len(runs),
-        "timed_samples": len(timings),
+        "runs": len(raw_runs),
+        "timed_samples": len(raw_timings),
         "seeds": args.seeds,
         "warmup": args.warmup,
         "iters": args.iters,
@@ -312,8 +329,19 @@ def main() -> int:
         "note": "H200/vLLM-compatible operator microbenchmark; not a full LLM serving benchmark.",
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    print(f"wrote {len(runs)} runs / {len(timings)} timed samples -> {out_dir}")
+    print(f"wrote {len(raw_runs)} runs / {len(raw_timings)} timed samples -> {out_dir}")
     return 0
+
+
+def write_csv(path: Path, rows: list[dict]) -> None:
+    if not rows:
+        path.write_text("", encoding="utf-8")
+        return
+    fieldnames = list(rows[0].keys())
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def hashlib_sha256(path: Path) -> str:
