@@ -1,0 +1,9 @@
+{
+  "fig1": "figures\\fig1_latency_vs_range_B128.png",
+  "fig2": "figures\\fig2_latency_vs_range_facets.png",
+  "fig3": "figures\\fig3_page_footprint_mechanism.png",
+  "fig4": "figures\\fig4_latency_vs_union_pages.png",
+  "fig5": "figures\\fig5_speedup_heatmap.png",
+  "fig6": "figures\\fig6_w1k_vs_w16k_bars.png",
+  "fig7": "figures\\fig7_scene_topk_patterns.png"
+}

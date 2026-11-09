@@ -1,0 +1,58 @@
+/opt/upgrade/.venv/lib/python3.12/site-packages/triton/language/extra/cann/extension/math_ops.py:13: FutureWarning: triton.language.extra.cann.extension.atan2 is deprecated and will be removed in the next release; use triton.language.extra.cann.libdevice.atan2 instead.
+  @_deprecated(replacement="triton.language.extra.cann.libdevice.atan2")
+/opt/upgrade/.venv/lib/python3.12/site-packages/triton/language/extra/cann/extension/math_ops.py:35: FutureWarning: triton.language.extra.cann.extension.isfinited is deprecated and will be removed in the next release; use triton.language.extra.cann.libdevice.isfinited instead.
+  @_deprecated(replacement="triton.language.extra.cann.libdevice.isfinited")
+/opt/upgrade/.venv/lib/python3.12/site-packages/triton/language/extra/cann/extension/math_ops.py:49: FutureWarning: triton.language.extra.cann.extension.finitef is deprecated and will be removed in the next release; use triton.language.extra.cann.libdevice.finitef instead.
+  @_deprecated(replacement="triton.language.extra.cann.libdevice.finitef")
+ninja: no work to do.
+ninja: no work to do.
+[1/4] building full-size KV cache ...
+      cache ready in 1.71s, K+V host bytes=384.0 MiB
+[2/4] compiling / warming the core op ...
+ninja: no work to do.
+      core op warmup complete
+[3/4] building metadata tensors ...
+[4/4] running 720 measured scenarios (10 warmup + 50 timed each) ...
+  [1] recent_contiguous__r1024__b1__s7000 span=512 pages=33.0 median=0.0745 ms
+  [20] recent_contiguous__r4096__b1__s7007 span=512 pages=33.0 median=0.0745 ms
+  [40] recent_contiguous__r16384__b1__s7003 span=512 pages=32.8 median=0.0743 ms
+  [60] multi_sink__r1024__b1__s7011 span=1024 pages=40.0 median=0.0739 ms
+  [80] multi_sink__r8192__b1__s7007 span=8192 pages=40.0 median=0.0739 ms
+  [100] uniform__r1024__b1__s7003 span=1022 pages=65.0 median=0.0749 ms
+  [120] uniform__r4096__b1__s7011 span=4076 pages=228.0 median=0.0754 ms
+  [140] uniform__r16384__b1__s7007 span=16322 pages=410.5 median=0.0759 ms
+  batch 1 complete
+  [160] recent_contiguous__r4096__b8__s7003 span=512 pages=32.9 median=0.0833 ms
+  [180] recent_contiguous__r8192__b8__s7011 span=512 pages=33.0 median=0.0837 ms
+  [200] multi_sink__r1024__b8__s7007 span=1024 pages=40.0 median=0.0824 ms
+  [220] multi_sink__r8192__b8__s7003 span=8192 pages=40.0 median=0.0829 ms
+  [240] multi_sink__r16384__b8__s7011 span=16383 pages=39.0 median=0.0826 ms
+  [260] uniform__r4096__b8__s7007 span=4081 pages=226.8 median=0.0842 ms
+  [280] uniform__r16384__b8__s7003 span=16317 pages=409.4 median=0.0851 ms
+  batch 8 complete
+  [300] recent_contiguous__r1024__b32__s7011 span=512 pages=32.9 median=0.0974 ms
+  [320] recent_contiguous__r8192__b32__s7007 span=512 pages=32.9 median=0.1497 ms
+  [340] multi_sink__r1024__b32__s7003 span=1024 pages=40.0 median=0.0964 ms
+  [360] multi_sink__r4096__b32__s7011 span=4096 pages=40.0 median=0.0967 ms
+  [380] multi_sink__r16384__b32__s7007 span=16383 pages=39.0 median=0.0961 ms
+  [400] uniform__r4096__b32__s7003 span=4082 pages=225.9 median=0.2371 ms
+  [420] uniform__r8192__b32__s7011 span=8164 pages=329.7 median=0.2590 ms
+  batch 32 complete
+  [440] recent_contiguous__r1024__b128__s7007 span=512 pages=32.9 median=0.3782 ms
+  [460] recent_contiguous__r8192__b128__s7003 span=512 pages=32.9 median=0.5770 ms
+  [480] recent_contiguous__r16384__b128__s7011 span=512 pages=32.9 median=0.6202 ms
+  [500] multi_sink__r4096__b128__s7007 span=4096 pages=40.0 median=0.3758 ms
+  [520] multi_sink__r16384__b128__s7003 span=16383 pages=39.0 median=0.3748 ms
+  [540] uniform__r1024__b128__s7011 span=1022 pages=64.5 median=0.5315 ms
+  [560] uniform__r8192__b128__s7007 span=8162 pages=329.8 median=1.0099 ms
+  batch 128 complete
+  [580] recent_contiguous__r1024__b256__s7003 span=512 pages=32.9 median=0.7972 ms
+  [600] recent_contiguous__r4096__b256__s7011 span=512 pages=32.9 median=1.0277 ms
+  [620] recent_contiguous__r16384__b256__s7007 span=512 pages=33.0 median=1.2492 ms
+  [640] multi_sink__r4096__b256__s7003 span=4096 pages=40.0 median=0.7927 ms
+  [660] multi_sink__r8192__b256__s7011 span=8192 pages=40.0 median=0.7923 ms
+  [680] uniform__r1024__b256__s7007 span=1022 pages=64.5 median=1.1029 ms
+  [700] uniform__r8192__b256__s7003 span=8162 pages=329.8 median=2.0491 ms
+  [720] uniform__r16384__b256__s7011 span=16321 pages=408.2 median=2.1123 ms
+  batch 256 complete
+done: 720 runs -> /root/gbsa_range_benchmark/outputs/full_12seed

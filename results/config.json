@@ -1,0 +1,71 @@
+{
+  "created_at": "2026-11-05T07:14:33+0000",
+  "args": {
+    "output_dir": "outputs/full_12seed",
+    "device": "npu:0",
+    "context_tokens": 131072,
+    "region_size": 8,
+    "topk": 512,
+    "page_size": 128,
+    "num_heads": 64,
+    "num_kv_groups": 4,
+    "head_dim": 192,
+    "batch_sizes": "1,8,32,128,256",
+    "ranges": "1024,4096,8192,16384",
+    "scenes": "recent_contiguous,multi_sink,uniform",
+    "seeds": 12,
+    "warmup": 10,
+    "iters": 50,
+    "kv_seed": 20261105,
+    "block_table_seed": 20261106,
+    "selection_seed": 7000,
+    "resume": false,
+    "quick": false
+  },
+  "shape": {
+    "context_tokens": 131072,
+    "num_regions_total": 16384,
+    "current_region": 16383,
+    "page_size": 128,
+    "num_pages": 1024,
+    "regions_per_page": 16,
+    "num_heads": 64,
+    "num_kv_groups": 4,
+    "head_dim": 192,
+    "topk": 512,
+    "region_size": 8,
+    "kv_dtype": "bfloat16",
+    "k_cache_shape": [
+      1024,
+      128,
+      4,
+      192
+    ],
+    "v_cache_shape": [
+      1024,
+      128,
+      4,
+      192
+    ],
+    "q_shape_per_token": [
+      64,
+      192
+    ],
+    "softmax_scale": 0.07216878364870322
+  },
+  "selection_model": {
+    "source": "deterministic IndexR-score surrogate: Gaussian score + scene pulse, top-k inside candidate window",
+    "candidate_window": "last min(W, num_regions_total-1) historical regions, current region appended by GBSA contract",
+    "pulse_db": 12.0,
+    "scenes": {
+      "recent_contiguous": "one contiguous top-k region band near the recent end",
+      "multi_sink": "8 contiguous bands of topk/8 regions evenly spread over the candidate window",
+      "uniform": "flat/diffuse score, top-k approximately uniform over the candidate window"
+    }
+  },
+  "timed_scope": "aclnn GenericBlockSparseAttention core op only; metadata/prepack/indexer excluded",
+  "is_consistent_topk": false,
+  "mask_mode": 1,
+  "layout_q": "TND",
+  "layout_kv": "PA_BBND"
+}
