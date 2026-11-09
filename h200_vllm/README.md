@@ -19,6 +19,7 @@
 | `validate_results.py` | 不依赖 GPU，检查 run 数、样本数、中位数一致性、SHA256 |
 | `compare_with_ascend.py` | 与 Ascend `results/summary_by_scene_range_batch.csv` 做工作量级对照 |
 | `run_in_container.sh` | 容器内一键运行 |
+| `H200_DEPLOY_RUNBOOK.md` | H200 容器部署、自检、smoke、全量运行、结果回收和排障手册 |
 
 ## 2. 环境
 
